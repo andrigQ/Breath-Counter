@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Breath Counter (Mic)</title>
+  <style>
+    body { text-align: center; font-family: sans-serif; padding: 50px; }
+    h1 { font-size: 36px; }
+    #count { font-size: 60px; margin: 20px; }
+    button { font-size: 24px; padding: 10px 20px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Breath Counter</h1>
+  <p>Make sure your mic is on and breathe clearly near it.</p>
+  <div id="count">0</div>
+  <button onclick="startBreathCounter()">Start</button>
+  <button onclick="reset()">Reset</button>
+
+  <script>
+    let count = 0;
+    let lastBreathTime = 0;
+
+    async function startBreathCounter() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      const dataArray = new Uint8Array(analyser.fftSize);
+
+      source.connect(analyser);
+
+      function detectBreath() {
+        analyser.getByteTimeDomainData(dataArray);
+        let volume = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          let v = (dataArray[i] - 128) / 128;
+          volume += v * v;
+        }
+        volume = Math.sqrt(volume / dataArray.length);
+
+        const now = Date.now();
+        if (volume > 0.03 && now - lastBreathTime > 2000) { // Sensitivity & cooldown
+          count++;
+          document.getElementById("count").textContent = count;
+          lastBreathTime = now;
+        }
+
+        requestAnimationFrame(detectBreath);
+      }
+
+      detectBreath();
+    }
+
+    function reset() {
+      count = 0;
+      document.getElementById("count").textContent = count;
+    }
+  </script>
+</body>
+</html>
